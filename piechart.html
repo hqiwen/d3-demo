@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+        <title>d3 demo</title>
+        <style>
+            .tooltip{
+                position: absolute;
+                width: 120;
+                height: auto;
+                font-size: 14px;
+                text-align: center;
+                border: 1px solid #000;
+                border-radius: 5px;
+                background-color: #fff;
+            }
+        </style>
+        <script src="https://d3js.org/d3.v5.min.js"></script>
+    </head>
+    <body>
+        <script>
+            const width = 500;
+            const height = 500;
+
+            const svg = d3
+                .select("body")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            const dataset = [
+                ["小米", 68],
+                ["三星", 58],
+                ["联想", 47],
+                ["苹果", 46],
+                ["华为", 41.3],
+                ["酷派", 40.1],
+                ["其他", 111.3]
+            ];
+
+            const pie = d3.pie().value(function(d) {
+                return d[1];
+            });//值访问器
+
+            const pieData = pie(dataset);
+
+            const outRadius = width / 3;
+            const innerRadius = 0;
+
+            const arc = d3
+                .arc()
+                .innerRadius(innerRadius)
+                .outerRadius(outRadius);
+
+            const color = d3.schemeCategory10;
+
+            const arcs = svg
+                .selectAll("g")
+                .data(pieData)
+                .enter()
+                .append("g")
+                .attr("transform", `translate(${width / 2}, ${height / 2})`);
+
+            arcs.append("path")
+                .attr("fill", function(d, i) {
+                    return color[i];
+                })
+                .attr("d", function(d) {
+                    return arc(d);
+                });
+            arcs.append("text")
+                    .attr("transform", function (d) {
+                        let x = arc.centroid(d)[0] * 1.4;
+                        let y = arc.centroid(d)[1] * 1.4;
+                        return `translate(${x}, ${y})`;
+                    })
+                    .attr("text-anchor", "middle")
+                    .text(function (d) {
+                        let percent =
+                            (Number(d.value) /
+                                d3.sum(dataset, function (d) {
+                                    return d[1];
+                                })) *
+                            100;
+                        return percent.toFixed(1) + "%";
+                    });
+
+            arcs.append("text")
+                .attr("transform", function (d) {
+                    let x = arc.centroid(d)[0] * 2.5;
+                    let y = arc.centroid(d)[1] * 2.5;
+                    return `translate(${x}, ${y})`;
+                })
+                .attr("text-anchor", "middle")
+                .text(function (d) {
+                    return d.data[0];
+                });
+
+            const tooltip = d3.select("body").append("div").attr("class", "tooltip").style("opacity", 0.0);
+
+            arcs.on("mouseover", function(d) {
+                tooltip.html(d.data[0] + "出货量" + d.data[1] + "百万台")
+                    .style("left", (d3.event.pageX) + "px")
+                    .style("top", (d3.event.pageY) + 20 + "px")
+                    .style("opacity", 1.0)
+            })
+            .on("mousemove", function(d) {
+                tooltip.style("left", (d3.event.pageX) + "px")
+                    .style("top", (d3.event.pageY) + 20 + "px")
+            })
+            .on("mouseout", function(d) {
+                tooltip.style("opacity", 1.0);
+            })
+        </script>
+    </body>
+</html>

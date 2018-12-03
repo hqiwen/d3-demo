@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+        <title>d3 demo</title>
+        <script src="https://d3js.org/d3.v5.min.js"></script>
+    </head>
+
+    <body>
+        <script>
+            const width = 400;
+            const height = 400;
+            const center = [[0.5, 0.5], [0.7, 0.8], [0.4, 0.9], [0.11, 0.32]];
+            const padding = { top: 20, right: 20, bottom: 20, left: 20 };
+
+            const xScale = d3
+                .scaleLinear()
+                .domain([
+                    0,
+                    1.2 *
+                        d3.max(center, function(d) {
+                            return d[0];
+                        })
+                ])
+                .range([0, width - padding.left - padding.right]);
+
+            const yScale = d3
+                .scaleLinear()
+                .domain([
+                    0,
+                    1.2 *
+                        d3.max(center, function(d) {
+                            return d[1];
+                        })
+                ])
+                .range([height - padding.top - padding.bottom, 0]);
+
+            const xAxis = d3.axisTop(xScale);
+            const yAxis = d3.axisRight(yScale);
+
+            const svg = d3
+                .select("body")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            svg.append("g")
+                .attr(
+                    "transform",
+                    `translate(${padding.left}, ${height - padding.bottom})`
+                )
+                .call(xAxis);
+            svg.append("g")
+                .attr("transform", `translate(${padding.left}, ${padding.top})`)
+                .call(yAxis);
+
+            
+
+            const linePath = d3
+                .line()
+                .curve(d3.curveBasis)
+                .x(function(d) {
+                    return xScale(d[0]);
+                })
+                .y(function(d) {
+                    return yScale(d[1]);
+                });
+
+            svg.append("path")
+                .attr("transform", `translate(${padding.left}, ${padding.top})`)
+                .attr("d", function(d) {
+                    return linePath(center);
+                })
+                .attr("fill", "none")
+                .attr("stroke-width", 3)
+                .attr("stroke", "black")
+        </script>
+    </body>
+</html>
