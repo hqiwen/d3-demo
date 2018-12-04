@@ -6,7 +6,7 @@
         <meta http-equiv="X-UA-Compatible" content="ie=edge" />
         <title>d3 demo</title>
         <style>
-            .tooltip{
+            .tooltip {
                 position: absolute;
                 width: 120;
                 height: auto;
@@ -42,9 +42,9 @@
 
             const pie = d3.pie().value(function(d) {
                 return d[1];
-            });//值访问器
+            }); //值访问器
 
-            const pieData = pie(dataset);
+            let pieData = pie(dataset);
 
             const outRadius = width / 3;
             const innerRadius = 0;
@@ -54,16 +54,118 @@
                 .innerRadius(innerRadius)
                 .outerRadius(outRadius);
 
+            const pieCircle = {
+                cx: width / 2,
+                cy: height / 2,
+                r: outRadius
+            };
             const color = d3.schemeCategory10;
+            const drag = d3
+                .drag()
+                .on("drag", dragMove)
+                .on("end", dragend);
+            function dragMove(d) {
+                d.dx += d3.event.dx;
+                d.dy += d3.event.dy;
+                d3.select(this).attr(
+                    "transform",
+                    `translate(${d.dx + d.circle.cx}, ${d.dy + d.circle.cy})`
+                );
+            }
+            function dragend(d, i) {
+                console.log("drag end");
+                let dis2 = d.dx * d.dx + d.dy * d.dy;
+                if (dis2 > d.circle.r * d.circle.r) {
+                    let movedData = dataset.splice(i, 1);
+                    console.log(dataset);
+                    pieData = pie(dataset);
+                    appendCircle(movedData[0]);
+                    redraw();
+                }
+            }
+            function setAttributes(arcs) {
+                arcs.each(function(d) {
+                    d.circle = pieCircle;
+                    d.dx = 0;
+                    d.dy = 0;
+                });
+
+                arcs.attr("transform", function(d) {
+                    return `translate(${d.circle.cx}, ${d.circle.cy})`;
+                });
+                arcs.select(".arcPath")
+                    .attr("fill", function(d, i) {
+                        return color[i];
+                    })
+                    .attr("d", function(d) {
+                        return arc(d);
+                    });
+
+                arcs.select(".percent")
+                    .attr("transform", function(d) {
+                        let x = arc.centroid(d)[0] * 1.4;
+                        let y = arc.centroid(d)[1] * 1.4;
+                        return `translate(${x}, ${y})`;
+                    })
+                    .attr("text-anchor", "middle")
+                    .text(function(d) {
+                        let percent =
+                            (Number(d.value) /
+                                d3.sum(dataset, function(d) {
+                                    return d[1];
+                                })) *
+                            100;
+                        return percent.toFixed(1) + "%";
+                    });
+
+                arcs.select(".company")
+                    .attr("transform", function(d) {
+                        let x = arc.centroid(d)[0] * 2.5;
+                        let y = arc.centroid(d)[1] * 2.5;
+                        return `translate(${x}, ${y})`;
+                    })
+                    .attr("text-anchor", "middle")
+                    .text(function(d) {
+                        return d.data[0];
+                    });
+            }
+            function redraw() {
+                let acrsUpdate = svg
+                    .selectAll(".arcGroup")
+                    .data(pieData, function(d) {
+                        return d.data[0];
+                    });
+                console.log(acrsUpdate, svg.selectAll(".arcGroup"));
+                let arcsEnter = acrsUpdate.enter();
+                let arcsExit = acrsUpdate.exit();
+
+                acrsUpdate.call(setAttributes);
+
+                let newArcs = arcsEnter.append("g").attr("class", "arcGroup");
+                newArcs.append("path").attr("class", "arcPath");
+                newArcs.append("text").attr("class", "percent");
+                newArcs.append("text").attr("class", "company");
+                newArcs.call(setAttributes);
+
+                arcsExit.remove();
+            }
 
             const arcs = svg
                 .selectAll("g")
                 .data(pieData)
                 .enter()
                 .append("g")
-                .attr("transform", `translate(${width / 2}, ${height / 2})`);
+                .each(function(d) {
+                    d.circle = pieCircle;
+                    d.dx = 0;
+                    d.dy = 0;
+                })
+                .attr("class", "arcGroup")
+                .attr("transform", `translate(${width / 2}, ${height / 2})`)
+                .call(drag);
 
             arcs.append("path")
+                .attr("class", "arcPath")
                 .attr("fill", function(d, i) {
                     return color[i];
                 })
@@ -71,48 +173,87 @@
                     return arc(d);
                 });
             arcs.append("text")
-                    .attr("transform", function (d) {
-                        let x = arc.centroid(d)[0] * 1.4;
-                        let y = arc.centroid(d)[1] * 1.4;
-                        return `translate(${x}, ${y})`;
-                    })
-                    .attr("text-anchor", "middle")
-                    .text(function (d) {
-                        let percent =
-                            (Number(d.value) /
-                                d3.sum(dataset, function (d) {
-                                    return d[1];
-                                })) *
-                            100;
-                        return percent.toFixed(1) + "%";
-                    });
+                .attr("class", "percent")
+                .attr("transform", function(d) {
+                    let x = arc.centroid(d)[0] * 1.4;
+                    let y = arc.centroid(d)[1] * 1.4;
+                    return `translate(${x}, ${y})`;
+                })
+                .attr("text-anchor", "middle")
+                .text(function(d) {
+                    let percent =
+                        (Number(d.value) /
+                            d3.sum(dataset, function(d) {
+                                return d[1];
+                            })) *
+                        100;
+                    return percent.toFixed(1) + "%";
+                });
 
             arcs.append("text")
-                .attr("transform", function (d) {
+                .attr("class", "company")
+                .attr("transform", function(d) {
                     let x = arc.centroid(d)[0] * 2.5;
                     let y = arc.centroid(d)[1] * 2.5;
                     return `translate(${x}, ${y})`;
                 })
                 .attr("text-anchor", "middle")
-                .text(function (d) {
+                .text(function(d) {
                     return d.data[0];
                 });
 
-            const tooltip = d3.select("body").append("div").attr("class", "tooltip").style("opacity", 0.0);
+            let circleGroup = svg.append("g");
+            function appendCircle(data) {
+                gCircle = circleGroup
+                    .append("g")
+                    .datum(data)
+                    .attr("class", "movedArc")
+                    .attr(
+                        "transform",
+                        `translate(${d3.event.sourceEvent.offsetX}, ${
+                            d3.event.sourceEvent.offsetY
+                        })`
+                    );
+
+                gCircle
+                    .append("circle")
+                    .attr("cx", 0)
+                    .attr("cy", 0)
+                    .attr("r", 20)
+                    .style("fill", function(d, i) {
+                        return color[i];
+                    });
+
+                gCircle
+                    .append("text")
+                    .attr("dx", "22px")
+                    .attr("dy", "0.4em")
+                    .text(function(d) {
+                        return d[0];
+                    });
+            }
+
+            const tooltip = d3
+                .select("body")
+                .append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0.0);
 
             arcs.on("mouseover", function(d) {
-                tooltip.html(d.data[0] + "出货量" + d.data[1] + "百万台")
-                    .style("left", (d3.event.pageX) + "px")
-                    .style("top", (d3.event.pageY) + 20 + "px")
-                    .style("opacity", 1.0)
+                tooltip
+                    .html(d.data[0] + "出货量" + d.data[1] + "百万台")
+                    .style("left", d3.event.pageX + "px")
+                    .style("top", d3.event.pageY + 20 + "px")
+                    .style("opacity", 1.0);
             })
-            .on("mousemove", function(d) {
-                tooltip.style("left", (d3.event.pageX) + "px")
-                    .style("top", (d3.event.pageY) + 20 + "px")
-            })
-            .on("mouseout", function(d) {
-                tooltip.style("opacity", 1.0);
-            })
+                .on("mousemove", function(d) {
+                    tooltip
+                        .style("left", d3.event.pageX + "px")
+                        .style("top", d3.event.pageY + 20 + "px");
+                })
+                .on("mouseout", function(d) {
+                    tooltip.style("opacity", 1.0);
+                });
         </script>
     </body>
 </html>
