@@ -73,11 +73,9 @@
                 );
             }
             function dragend(d, i) {
-                console.log("drag end");
                 let dis2 = d.dx * d.dx + d.dy * d.dy;
                 if (dis2 > d.circle.r * d.circle.r) {
                     let movedData = dataset.splice(i, 1);
-                    console.log(dataset);
                     pieData = pie(dataset);
                     appendCircle(movedData[0]);
                     redraw();
@@ -135,7 +133,7 @@
                     .data(pieData, function(d) {
                         return d.data[0];
                     });
-                console.log(acrsUpdate, svg.selectAll(".arcGroup"));
+
                 let arcsEnter = acrsUpdate.enter();
                 let arcsExit = acrsUpdate.exit();
 
@@ -202,6 +200,28 @@
                     return d.data[0];
                 });
 
+            let dragCircle = d3
+                .drag()
+                .on("drag", dragCircleMove)
+                .on("end", dragCircleEnd);
+
+            function dragCircleMove(d) {
+                d.x = d3.event.sourceEvent.offsetX;
+                d.y = d3.event.sourceEvent.offsetY;
+                d3.select(this).attr(
+                    "transform",
+                    `translate(${d.x}, ${d.y})`
+                );
+            }
+            function dragCircleEnd(d, i) {
+                let dis2 = ( d.x - pieCircle.cx ) * (d.x - pieCircle.cx) + (d.y - pieCircle.cy)*(d.y- pieCircle.cy)
+                if(dis2<pieCircle.r * pieCircle.r) {
+                    dataset.push([d[0], d[1]]);
+                    pieData = pie(dataset);
+                    redraw();
+                }
+            }
+
             let circleGroup = svg.append("g");
             function appendCircle(data) {
                 gCircle = circleGroup
@@ -213,15 +233,16 @@
                         `translate(${d3.event.sourceEvent.offsetX}, ${
                             d3.event.sourceEvent.offsetY
                         })`
-                    );
+                    )
+                    .call(dragCircle)
 
                 gCircle
                     .append("circle")
                     .attr("cx", 0)
                     .attr("cy", 0)
                     .attr("r", 20)
-                    .style("fill", function(d, i) {
-                        return color[i];
+                    .style("fill", function(d) {
+                        return color;
                     });
 
                 gCircle
