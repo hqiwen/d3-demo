@@ -43,7 +43,7 @@ Polygon.prototype = {
     getPoints: function() {
         let points = [],
             angle = this.startAngle || 0;
-        for (let i = 1; i < this.sides; ++i) {
+        for (let i = 0; i < this.sides; ++i) {
             points.push(
                 new Point(
                     this.centerX + this.radius * Math.sin(angle),
@@ -58,7 +58,7 @@ Polygon.prototype = {
         let points = this.getPoints();
         context.beginPath();
         context.moveTo(points[0].x, points[0].y);
-        for (let i = 0; i < sides; ++i) {
+        for (let i = 1; i < this.sides; ++i) {
             context.lineTo(points[i].x, points[i].y);
         }
         context.closePath();
@@ -125,32 +125,17 @@ function updateRubberBandRectangle(loc) {
     else rubberBandRect.left = loc.y;
 }
 
-function drawRubberBandShape(loc) {
-    let angle,radius;
-    if(mousedown.y === loc.y){
-        return radius = Math.abs(loc.x - mousedown.x);
-    } else {
-        angle = Math.atan(rubberBandRect.height / rubberBandRect.width);
-        radius = rubberBandRect.height / Math.sin(angle);
-    }
-    context.beginPath();
-    context.arc(mousedown.x, mousedown.y, radius, 0, Math.PI * 2, false);
-    context.stroke();
-
-    if(fillCheckBox.checked) context.fill();
-}
-
-function drawRubberBandPolygonShape(loc, sides, startAngle) {
-    let polygon = new Polygon(mousedown.x, mousedown.y, rubberBandRect.width, parseInt(sidesSelect.value), (Math.PI / 180) * parseInt(startAngleSelect.value), context.strokeStyle, context.fillStyle, fillCheckBox.checked);
+function drawRubberBandShape(loc, sides, startAngle) {
+    let polygon = new Polygon(mousedown.x, mousedown.y, rubberBandRect.width, parseInt(sides), (Math.PI / 180) * parseInt(startAngle), context.strokeStyle, context.fillStyle, fillCheckBox.checked);
     drawPolygon(polygon);
     if (!dragging) {
         polygons.push(polygon);
     }
 }
 
-function updateRubberBand(loc) {
+function updateRubberBand(loc, sides, startAngle) {
     updateRubberBandRectangle(loc);
-    drawRubberBandShape(loc);
+    drawRubberBandShape(loc, sides, startAngle);
 }
 
 function drawPolygon(polygon) {
@@ -211,8 +196,8 @@ canvas.onmousedown = function (e) {
             if (context.isPointInPath(loc.x, loc.y)) {
                 startDragging(loc);
                 dragging = polygon;
-                draggingOffsetX = loc.x - polygon.x;
-                draggingOffsetY = loc.y - polygon.y;
+                draggingOffsetX = loc.x - polygon.centerX;
+                draggingOffsetY = loc.y - polygon.centerY;
                 return;
             }
         })
@@ -222,23 +207,31 @@ canvas.onmousedown = function (e) {
     }
 }
 canvas.onmousemove = function (e) {
-    let loc;
-    if (dragging) {
-        e.preventDefault();
-        loc = windowToCanvas(e.clientX, e.clientY);
-        restoreDrawingSurface();
-        updateRubberBand(loc);
-        if (guideWires) {
-            drawGuideWires(loc.x, loc.y);
+    let loc = windowToCanvas(e.clientX, e.clientY);
+    if (dragging && editing) {
+        dragging.centerX = loc.x - draggingOffsetX;
+        dragging.centerY = loc.y - draggingOffsetY;
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        drawGrid('lightgray', 10, 10);
+        drawPolygons();
+    } else {
+        if (dragging) {
+            restoreDrawingSurface();
+            updateRubberBand(loc, sides, startAngle);
+            if (guideWires) {
+                drawGuideWires(mousedown.x, mousedown.y);
+            }
         }
     }
 }
 canvas.onmouseup = function (e) {
-    loc = windowToCanvas(e.clientX, e.clientY);
+    let loc = windowToCanvas(e.clientX, e.clientY);
     dragging = false;
-    if (editing) { } else {
+    if (editing) {
+
+     } else {
         restoreDrawingSurface();
-        updateRubberBand(loc);
+        updateRubberBand(loc, sides, startAngle);
     }
 }
 eraseAllButton.onclick = function (e) {
@@ -254,6 +247,12 @@ fillStyleSelect.onchange = function(e) {
 };
 lineWidthSelect.onchange = function(e) {
     context.lineWidth = lineWidthSelect.value;
+};
+startAngleSelect.onchange = function(e) {
+    startAngle = startAngleSelect.value;
+};
+sidesSelect.onchange = function(e) {
+    sides = sidesSelect.value;
 };
 guideWireCheckBox.onchange = function (e) {
     guideWires = guideWireCheckBox.checked;
