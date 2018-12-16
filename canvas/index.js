@@ -6,6 +6,7 @@ let canvas = document.getElementById("canvas"),
     lineWidthSelect = document.getElementById("lineWidthSelect"),
     startAngleSelect = document.getElementById("startAngleSelect"),
     sidesSelect = document.getElementById("sidesSelect"),
+    drawShapeSelect = document.getElementById("drawShapeSelect"),
     eraserShapeSelect = document.getElementById("eraserShapeSelect"),
     eraserWidthSelect = document.getElementById("eraserWidthSelect"),
     drawRadio = document.getElementById("drawRadio"),
@@ -25,12 +26,12 @@ let canvas = document.getElementById("canvas"),
     ERASER_LINE_WIDTH = 1,
     ERASER_SHADOW_COLOR = "rgb(0, 0, 0)",
     ERASER_SHADOW_STYLE = "blue",
-    ERASER_STROKE_STYLE = 'rgb(0,0,225)',
+    ERASER_STROKE_STYLE = "rgb(0,0,225)",
     ERASER_SHADOW_OFFSET = -5,
     ERASER_SHADOW_BLUR = 20,
     GRID_HORIZONTAL_SPACING = 10,
     GRID_VERTICAL_SPACING = 10,
-    GRID_LINE_COLOR = 'lightblue',
+    GRID_LINE_COLOR = "lightblue",
     draggingOffsetX = null,
     draggingOffsetY = null;
 
@@ -38,63 +39,6 @@ context.strokeStyle = strokeStyleSelect.value;
 context.fillStyle = fillStyleSelect.value;
 context.lineWidth = lineWidthSelect.value;
 
-const Point = function (x, y) {
-    this.x = x;
-    this.y = y;
-}
-const Polygon = function (centerX, centerY, radius, sides, startAngle, strokeStyle, fillStyle, filled) {
-    this.centerX = centerX;
-    this.centerY = centerY;
-    this.radius = radius;
-    this.sides = sides;
-    this.startAngle = startAngle;
-    this.strokeStyle = strokeStyle;
-    this.fillStyle = fillStyle;
-    this.filled = filled;
-}
-Polygon.prototype = {
-    getPoints: function() {
-        let points = [],
-            angle = this.startAngle || 0;
-        for (let i = 0; i < this.sides; ++i) {
-            points.push(
-                new Point(
-                    this.centerX + this.radius * Math.sin(angle),
-                    this.centerY + this.radius * Math.cos(angle)
-                )
-            );
-            angle += (2 * Math.PI) / this.sides;
-        }
-        return points;
-    },
-    createPath: function(context) {
-        let points = this.getPoints();
-        context.beginPath();
-        context.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < this.sides; ++i) {
-            context.lineTo(points[i].x, points[i].y);
-        }
-        context.closePath();
-    },
-    stroke: function (context) {
-        context.save();
-        this.createPath(context);
-        context.strokeStyle = this.strokeStyle;
-        context.stroke();
-        context.restore();
-    },
-    fill: function (context) {
-        context.save();
-        this.createPath(context);
-        context.fillStyle = this.fillStyle;
-        context.fill();
-        context.restore();
-    },
-    move: function (x, y) {
-        this.centerX = x;
-        this.centerY = y;
-    }
-};
 function drawGrid(color, stepx, stepy) {
     context.save()
     context.strokeStyle = color;
@@ -150,7 +94,7 @@ function drawRubberBandPolygonShape(loc, sides, startAngle) {
     }
 }
 
-function drawRubberBandShape(loc) {
+function drawRubberBandCircleShape(loc) {
     let angle = Math.atan(rubberBandRect.height / rubberBandRect.width), radius = rubberBandRect.height / Math.sin(angle);
     if (mousedown.y === loc.y) {
         radius = Math.abs(loc.x - mousedown.x);
@@ -161,9 +105,22 @@ function drawRubberBandShape(loc) {
     context.fill();
 }
 
+function drawRubberBandShape(loc) {
+    context.beginPath();
+    context.moveTo(mousedown.x, mousedown.y);
+    context.lineTo(loc.x, loc.y);
+    context.stroke();
+}
+
 function updateRubberBand(loc) {
     updateRubberBandRectangle(loc);
-    drawRubberBandShape(loc);
+    if (drawShapeSelect.value === "circle") {
+        drawRubberBandCircleShape(loc);
+    } else if (drawShapeSelect.value === "polygon"){
+        drawRubberBandPolygonShape(loc, sides, startAngle);
+    } else {
+        drawRubberBandShape(loc);
+    }
 }
 
 function drawPolygon(polygon, angle) {
@@ -211,6 +168,13 @@ function drawGuideWires(x, y) {
     drawHorizontalLine(y);
     drawVerticalLine(x);
     context.restore();
+}
+
+function drawBezierCurve() {
+    context.beginPath();
+    context.moveTo(endPoints[0].x, endPoints[0].y);
+    context.bezierCurveTo(controlPoints[0].x, controlPoints[0].y, controlPoints[1].x, controlPoints[1].y, endPoints[1].x, endPoints[1].y);
+    context.stroke();
 }
 
 function setDrawPathForEraser(loc) {
@@ -290,8 +254,10 @@ function stopEditing() {
 }
 canvas.onmousedown = function (e) {
     let loc = windowToCanvas(e.clientX, e.clientY);
+    dragging = true;
     e.preventDefault();
     if (editing) {
+        console.log("editing", polygons);
         polygons.forEach(function (polygon) {
             polygon.createPath(context);
             if (context.isPointInPath(loc.x, loc.y)) {
@@ -299,13 +265,13 @@ canvas.onmousedown = function (e) {
                 dragging = polygon;
                 draggingOffsetX = loc.x - polygon.centerX;
                 draggingOffsetY = loc.y - polygon.centerY;
+                console.log(dragging);
                 return;
             }
         })
     } else {
         startDragging(loc);
-        dragging = true;
-        console.log("mousedown", drawRadio.checked);
+        console.log("mousedown");
     }
 }
 canvas.onmousemove = function (e) {
@@ -331,13 +297,12 @@ canvas.onmousemove = function (e) {
             }
             lastX = loc.x;
             lastY = loc.y;
-            console.log("mousemove", lastX, lastY);
         }
     }
 }
 canvas.onmouseup = function (e) {
     let loc = windowToCanvas(e.clientX, e.clientY);
- 
+    dragging = false;
     if (editing) {
 
     } else {
@@ -349,7 +314,6 @@ canvas.onmouseup = function (e) {
             eraseLast();
         }
     }
-    dragging = false;
     console.log("mouseup");
 }
 eraseAllButton.onclick = function (e) {
