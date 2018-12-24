@@ -3,6 +3,7 @@ let painter = {
     ImagePainter: ImagePainter,
     SpriteSheetPainter: SpriteSheetPainter
 }
+// 精灵的实现
 let Sprite = function (name, painter, behaviors) {
     if (name !== undefined) this.name = name;
     if (painter !== undefined) this.painter = painter;
@@ -30,6 +31,7 @@ Sprite.prototype = {
         }
     }
 }
+// 路径绘制器
 let ballPainter = {
     paint: function (sprite, context) {
         let x = sprite.left + sprite.width / 2;
@@ -43,6 +45,7 @@ let ballPainter = {
         context.restore();
     }
 }
+// 图像绘制器
 let ImagePainter = function (imgUrl) {
     this.image = new Image();
     this.image.src = imgUrl;
@@ -54,6 +57,7 @@ ImagePainter.prototype = {
         }
     }
 }
+// 精灵表绘制器
 let SpriteSheetPainter = function (cells) {
     this.cells = cells || [];
     this.cellIndex = 0;
@@ -74,11 +78,14 @@ SpriteSheetPainter.prototype = {
 let runInPlace = {
     lastAdvance: 0,
     PAGEFLIP_INTERVAL: 1000,
-    execute: function (sprite, context, now) {
-        if (now - this.lastAdvance > this.PAGEFLIP_INTERVAL) {
+    execute: function (sprite) {
+        let elapsed = animationTimer.getElapsedTime();
+        if (this.lastAdvance === 0) {
+            this.lastAdvance = elapsed;
+        } else if (this.lastAdvance !== 0 && elapsed - this.lastAdvance > this.PAGEFLIP_INTERVAL) {
             sprite.painter.advance();
-            this.lastAdvance = now;
-        }
+            this.lastAdvance = elapsed;
+        };
     }
 }
 
@@ -110,12 +117,12 @@ StopWatch.prototype = {
     }
 }
 
-AnimationTimer = function (duration) {
-    this.duration = duration;
+AnimationTimer = function (duration, timeWrap) {
+    if(this.duration !== undefined) this.duration = duration;
+    if(this.timeWrap !== undefined) this.timeWrap = timeWrap;
+    this.stopWatch = new StopWatch();
 }
 AnimationTimer.prototype = {
-    duration: undefined,
-    stopWatch: new StopWatch(),
     start: function () {
         this.stopWatch.start();
     },
@@ -123,18 +130,30 @@ AnimationTimer.prototype = {
         this.stopWatch.stop();
     },
     getElapsedTime: function () {
-        let elapsedTime = this.stopWatch.getElapsedTime();
+        let elapsedTime = this.stopWatch.getElapsedTime(),
+            percentComplete = elapsedTime / this.duration;
         if (!this.stopWatch.running) {
             return undefined;
-        } else {
-            return elapsedTime;
         }
+        if (this.timeWrap == undefined) return elapsedTime;
+        return elapsedTime * (this.timeWrap(percentComplete) / percentComplete);
     },
     isRunning: function () {
         return this.stopWatch.isRunning();
     },
     isOver: function () {
         return this.stopWatch.getElapsedTime() > this.duration;
+    }
+}
+//时间轴的扭曲函数，注意帧速率会发生变化
+AnimationTimer.makeEaseIn = function (strength) {
+    return function (percentComplete) {
+        return 1 - Math.pow(percentComplete, strength * 2);
+    }
+}
+AnimationTimer.makeEaseInOut = function () {
+    return function (percentComplete) {
+        return percentComplete - Math.sin(percentComplete * 2 * Math.PI) / (2 * Math.PI);
     }
 }
 
