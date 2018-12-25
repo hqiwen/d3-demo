@@ -23,6 +23,7 @@ let canvas = document.getElementById("canvas"),
     sides = 8,
     startAngle = 0,
     polygons = [],
+    shapes = [],
     ERASER_LINE_WIDTH = 1,
     ERASER_SHADOW_COLOR = "rgb(0, 0, 0)",
     ERASER_SHADOW_STYLE = "blue",
@@ -251,6 +252,21 @@ function startEditing() {
 function stopEditing() {
     canvas.style.cursor = 'crosshair';
     editing = false;
+}
+function detectCollisions() {
+    let textY = 30, numShapes = shapes.length,shape;
+    if (shapeBeingDragged) {
+        for (let i = 0; i < numShapes; ++i) {
+            shape = shapes[i];
+            if (shape !== shapeBeingDragged) {
+                if (shapeBeingDragged.collidesWith(shape)) {
+                    context.fillStyle = shape.fillStyle;
+                    context.fillText('collision', 20, textY);
+                    textY += 40;
+                }
+            }
+        }
+    }
 }
 canvas.onmousedown = function (e) {
     let loc = windowToCanvas(e.clientX, e.clientY);

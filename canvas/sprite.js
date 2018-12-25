@@ -88,7 +88,7 @@ let runInPlace = {
         };
     }
 }
-
+//时间的控制
 StopWatch = function () { };
 StopWatch.prototype = {
     startTime = 0,
