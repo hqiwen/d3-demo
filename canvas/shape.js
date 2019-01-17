@@ -1,37 +1,36 @@
-const Vector = function (x, y) {
-    this.x = x;
-    this.y = y;
-}
-Vector.prototype = {
-    getMagnitude: function () {
+class Vector {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+    getMagnitude() {
         return Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2));
-    },
-    add: function (vector) {
+    }
+    add(vector) {
         let v = new Vector();
         v.x = this.x + vector.x;
         v.y = this.y + vector.y;
         return v;
-    },
-    subtract: function (vector) {
+    }
+    subtract(vector) {
         let v = new Vector();
         v.x = this.x - vector.x;
         v.y = this.y - vector.y;
         return v;
-    },
-    //点集为投影
-    dotProduct: function (vector) {
+    }
+    dotProduct(vector) {
         return this.x * vector.x + this.y * vector.y;
-    },
-    edge: function (vector) {
+    }
+    edge(vector) {
         return this.subtract(vector);
-    },
-    perpendicular: function () {
+    }
+    perpendicular() {
         let v = new Vector();
         v.x = this.y;
         v.y = 0 - this.x;
         return v;
-    },
-    normalize: function () {
+    }
+    normalize() {
         let v = new Vector(0, 0),
             m = this.getMagnitude();
         if (m != 0) {
@@ -39,8 +38,8 @@ Vector.prototype = {
             v.y = this.y / m;
         }
         return v;
-    },
-    normal: function () {
+    }
+    normal() {
         let p = this.perpendicular();
         return p.normalize();
     }
@@ -56,6 +55,16 @@ Projection.prototype = {
     }
 }
 
+function mixin(from, to) {
+    let fromPrototype = from.prototype, toPrototype = to.prototype;
+    for (i in fromPrototype) {
+        if (!toPrototype[i]) {
+            toPrototype[i] = fromPrototype[i];
+        }
+    }
+    return toPrototype;
+}
+
 const Shape = function () {
     this.x = undefined;
     this.y = undefined;
@@ -66,6 +75,27 @@ Shape.prototype = {
     collidesWith: function (shape) {
         let axes = this.getAxes().concat(shape.getAxes());
         return !this.separationOnAxes(axes, shape);
+    },
+    minimumTranslationVector: function (axes, shape) {
+        let minimumOverlap = 100000, overlap, axisWithSmallestOverlap;
+        for (let i = 0; i < axes.length; ++i) {
+            axis = axes[i];
+            projection1 = shape.projection(axis);
+            projection2 = this.projection(axis);
+            overlap = projection1.overlap(projection2);
+            if (overlap === 0) {
+                return {
+                    axis: undefined,
+                    overlap: 0,
+                };
+            } else {
+                if (overlap < minimumOverlap) {
+                    minimumOverlap = overlap;
+                    axisWithSmallestOverlap = axis;
+                }
+            }
+        }
+        return { axis: axisWithSmallestOverlap, overlap: minimumOverlap };
     },
     separationOnAxes: function (axes, shape) {
         for (let i = 0; i < axes.length; ++i) {
@@ -119,7 +149,6 @@ const Polygon = function (centerX, centerY, radius, sides, startAngle, strokeSty
     this.filled = filled;
     this.points = this.getPoints();
 }
-Polygon.prototype = new Shape();
 Polygon.prototype = {
     getPoints: function () {
         let points = [],
@@ -172,22 +201,33 @@ Polygon.prototype = {
     },
     addPoint: function (point) {
         this.points.push(new Point(point.x, point.y));
+    },
+    collidesWith: function (shape) {
+        let axes = shape.getAxes();
+        if (axes === undefined) {
+            //圆的碰撞判定
+            return polygonCollisionWithCircle(this, shape);
+        } else {
+            //多边形的判定
+            return polygonCollisionWithPolygon(this, shape);
+        }
     }
 };
+Polygon.prototype = mixin(Shape, Polygon);
 
 const Circle = function (x, y, radius) {
     this.x = x;
     this.y = y;
     this.radius = radius;
 }
-Circle.prototype = new Shape();
 Circle.prototype = {
     collidesWith: function (shape) {
-        let point, length, min = 10000, v1, v2, edge, perpendicular, normal,axes = shape.getAxes(), distance;
+        let axes = shape.getAxes();
         if (axes === undefined) {
-            distance = Math.sqrt(Math.pow(shape.x - this.x, 2) + Math.pow(shape.y - this.y), 2);
-            return distance < Math.abs(this.radius + shape.radius);
+            //圆碰撞的判定
+            return circleCollisionWithCircle(shape, this);
         } else {
+            //多边形碰撞的判定
             return polygonCollisionWithCircle(shape, this);
         }
     },
@@ -206,4 +246,62 @@ Circle.prototype = {
         context.beginPath();
         context.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
     }
+}
+Circle.prototype = mixin(Shape, Circle);
+
+function getPolygonPointClosestToCircle(polygon, circle) {
+    let min = 10000, length, testPoint, closestPoint;
+    for (let i = 0; i < polygon.points.length; ++i) {
+        testPoint = polygon.points[i];
+        length = Math.sqrt(Math.pow(testPoint.x - circle.x, 2), Math.pow(testPoint.y - circle.y), 2);
+        if (length < min) {
+            min = length;
+            closestPoint = testPoint;
+        }
+        return closestPoint;
+    }
+}
+
+function polygonCollisionWithCircle(polygon, circle) {
+    let v1, v2, axes = polygon.getAxes(), closestPoint = getPolygonPointClosestToCircle(polygon, circle);
+    v1 = new Vector(new Point(circle.x, circle.y));
+    v2 = new Vector(new point(closestPoint.x, closestPoint.y));
+
+    axes.push(v1.subtract(v2).normalize());
+    return !polygon.separationOnAxes(axes, circle);
+}
+
+function polygonCollisionWithPolygon(p1, p2) {
+    let mtv1 = p1.minimumTranslationVector(p1.getAxes(), p2);
+    let mtv2 = p2.minimumTranslationVector(p2.getAxes(), p2);
+    if (mtv1.overlap === 0 && mtv2.overlap === 0) {
+        return { axis: undefined, overlap: 0 };
+    } else {
+        return mtv1.overlap < mtv2.overlap ? mtv1 : mtv2;
+    }
+}
+
+function circleCollisionWithCircle(c1, c2) {
+    let distance = Math.sqrt(Math.pow(shape.x - this.x, 2) + Math.pow(shape.y - this.y), 2), overlap = Math.abs(c1.radius + c2.radius) - distance;
+    return overlap < 0 ? new minimumTranslationVector(undefined, 0) : new minimumTranslationVector(undefined, overlap);
+}
+
+function separate(shapeMoving, mtv) {
+    let dx, dy, velocityMagnitude, point;
+    if (mtv.axis === undefined) {
+        point = new Point();
+        velocityMagnitude = Math.sqrt(Math.pow(velocity.x, 2) + Math.pow(velocity.y, 2));
+        point.x = velocity.x / velocityMagnitude;
+        point.y = velocity.y / velocityMagnitude;
+        mtv.axis = new Vector(point);
+    }
+    dy = mtv.axis.y * mtv.overlap;
+    dx = mtv.axis.x * mtv.overlap;
+    if ((dx < 0 && velocity.x < 0) || (dx > 0 && velocity.x > 0)) {
+        dx = -dx;
+    }
+    if ((dy < 0 && velocity.y < 0) || (dy > 0 && velocity.y > 0)) {
+        dy = -dy;
+    }
+    shapeMoving.move(dx, dy);
 }
