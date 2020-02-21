@@ -1,4 +1,7 @@
 /* hello, the new year 2019,just do it with happy*/
+//@ts-check
+import { Polygon } from "./shape.js";
+
 let canvas = document.getElementById("canvas"),
     context = canvas.getContext("2d"),
     eraseAllButton = document.getElementById("eraseAllButton"),

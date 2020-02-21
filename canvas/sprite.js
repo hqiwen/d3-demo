@@ -1,8 +1,4 @@
-let painter = {
-    ballPainter: ballPainter,
-    ImagePainter: ImagePainter,
-    SpriteSheetPainter: SpriteSheetPainter
-}
+//@ts-check
 // 精灵的实现
 let Sprite = function (name, painter, behaviors) {
     if (name !== undefined) this.name = name;
@@ -87,6 +83,11 @@ let runInPlace = {
             this.lastAdvance = elapsed;
         };
     }
+}
+let painter = {
+    ballPainter: ballPainter,
+    ImagePainter: ImagePainter,
+    SpriteSheetPainter: SpriteSheetPainter
 }
 //时间的控制
 StopWatch = function () { };

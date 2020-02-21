@@ -1,3 +1,4 @@
+//@ts-check
 class Vector {
     constructor(x, y) {
         this.x = x;
@@ -57,7 +58,7 @@ Projection.prototype = {
 
 function mixin(from, to) {
     let fromPrototype = from.prototype, toPrototype = to.prototype;
-    for (i in fromPrototype) {
+    for (let i in fromPrototype) {
         if (!toPrototype[i]) {
             toPrototype[i] = fromPrototype[i];
         }
@@ -68,6 +69,7 @@ function mixin(from, to) {
 const Shape = function () {
     this.x = undefined;
     this.y = undefined;
+    this.axes = [];
     this.strokeStyle = 'rgba(255,253,208,0.9)';
     this.fillStyle = 'rgba(147, 197, 114, 0.8)';
 }
@@ -79,9 +81,9 @@ Shape.prototype = {
     minimumTranslationVector: function (axes, shape) {
         let minimumOverlap = 100000, overlap, axisWithSmallestOverlap;
         for (let i = 0; i < axes.length; ++i) {
-            axis = axes[i];
-            projection1 = shape.projection(axis);
-            projection2 = this.projection(axis);
+           let  axis = axes[i];
+            let projection1 = shape.projection(axis);
+            let projection2 = this.projection(axis);
             overlap = projection1.overlap(projection2);
             if (overlap === 0) {
                 return {
@@ -99,9 +101,9 @@ Shape.prototype = {
     },
     separationOnAxes: function (axes, shape) {
         for (let i = 0; i < axes.length; ++i) {
-            axis = axes[i];
-            projection1 = shape.projection(axis);
-            projection2 = this.projection(axis);
+            let axis = axes[i];
+            let projection1 = shape.projection(axis);
+            let projection2 = this.projection(axis);
             if (!projection1.overlaps(projection2)) {
                 return true;
             }
@@ -109,7 +111,7 @@ Shape.prototype = {
         }
     },
     getAxes: function () {
-        throw 'getAxes not implemented'
+        return this.axes;
     },
     createPath: function (context) {
         throw "createPath not implemented";
@@ -138,7 +140,7 @@ const Point = function (x, y) {
     this.x = x;
     this.y = y;
 }
-const Polygon = function (centerX, centerY, radius, sides, startAngle, strokeStyle, fillStyle, filled) {
+export const Polygon = function (centerX, centerY, radius, sides, startAngle, strokeStyle, fillStyle, filled) {
     this.centerX = centerX;
     this.centerY = centerY;
     this.radius = radius;
@@ -253,7 +255,7 @@ function getPolygonPointClosestToCircle(polygon, circle) {
     let min = 10000, length, testPoint, closestPoint;
     for (let i = 0; i < polygon.points.length; ++i) {
         testPoint = polygon.points[i];
-        length = Math.sqrt(Math.pow(testPoint.x - circle.x, 2), Math.pow(testPoint.y - circle.y), 2);
+        length = Math.sqrt((Math.pow(testPoint.x - circle.x, 2), Math.pow(testPoint.y - circle.y, 2)));
         if (length < min) {
             min = length;
             closestPoint = testPoint;
@@ -265,7 +267,7 @@ function getPolygonPointClosestToCircle(polygon, circle) {
 function polygonCollisionWithCircle(polygon, circle) {
     let v1, v2, axes = polygon.getAxes(), closestPoint = getPolygonPointClosestToCircle(polygon, circle);
     v1 = new Vector(new Point(circle.x, circle.y));
-    v2 = new Vector(new point(closestPoint.x, closestPoint.y));
+    v2 = new Vector(new Point(closestPoint.x, closestPoint.y));
 
     axes.push(v1.subtract(v2).normalize());
     return !polygon.separationOnAxes(axes, circle);
@@ -282,7 +284,7 @@ function polygonCollisionWithPolygon(p1, p2) {
 }
 
 function circleCollisionWithCircle(c1, c2) {
-    let distance = Math.sqrt(Math.pow(shape.x - this.x, 2) + Math.pow(shape.y - this.y), 2), overlap = Math.abs(c1.radius + c2.radius) - distance;
+    let distance = Math.sqrt((Math.pow(c1.x - c2.x, 2) + Math.pow(c1.y - c2.y,2))), overlap = Math.abs(c1.radius + c2.radius) - distance;
     return overlap < 0 ? new minimumTranslationVector(undefined, 0) : new minimumTranslationVector(undefined, overlap);
 }
 
